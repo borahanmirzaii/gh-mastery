@@ -3,7 +3,7 @@
 # from the on-disk commands/ tree. A node is "done" when its README lacks <!-- STUB -->.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 CMD="$ROOT/commands"
 README="$ROOT/README.md"
 CHEAT="$ROOT/cheatsheet.md"
@@ -32,13 +32,16 @@ progress() {
   echo "<!-- END PROGRESS -->"
 }
 
-# Replace the marked block in README.md in place.
-tmp="$(mktemp)"
-awk -v repl="$(progress)" '
-  /<!-- BEGIN PROGRESS/ {print repl; skip=1}
-  /<!-- END PROGRESS -->/ {skip=0; next}
+# Replace the marked block in README.md in place. Splice via a temp file —
+# awk -v cannot carry a multi-line value ("newline in string").
+pblock="$(mktemp)"; tmp="$(mktemp)"
+progress > "$pblock"
+awk -v f="$pblock" '
+  /<!-- BEGIN PROGRESS/ { while ((getline l < f) > 0) print l; close(f); skip=1; next }
+  /<!-- END PROGRESS -->/ { skip=0; next }
   !skip
 ' "$README" > "$tmp" && mv "$tmp" "$README"
+rm -f "$pblock"
 echo "updated $README"
 
 # --- cheatsheet (one block per node, in command-path order) -------------

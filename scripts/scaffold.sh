@@ -9,7 +9,7 @@
 # Re-run after a `gh` upgrade, then `git diff commands/_inventory.md` to see what's new.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 CMD="$ROOT/commands"
 TPL="$CMD/_TEMPLATE"
 PROMO="$CMD/_promotions.txt"
