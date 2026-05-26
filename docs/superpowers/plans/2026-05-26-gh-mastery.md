@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a single repo that teaches every `gh` command group via a reference page, a drills page, and a recall page each — built using `gh` itself, shipped milestone by milestone.
+**Goal:** Build a single repo that teaches every `gh` command group — and every subcommand meaty enough to deserve it — via a reference page, a drills page, and a recall page each, arranged as a **recursive tree that mirrors `gh`'s own command tree**, built with `gh` itself and shipped milestone by milestone.
 
-**Architecture:** Infra-first (Phase 0: sandbox repo, labels, milestones, canonical `_TEMPLATE/`, README dashboard, and all command-group issues filed via `gh`). Then a repeating authoring loop (Phase 1+): one issue per command group → linked branch → fill the three files from the template using `gh <group> --help` + the manual → verify examples against the sandbox → PR → squash-merge. Each closed milestone ships a `gh release`.
+**Architecture:** Scaffold-then-parallel (locked in RFC #1, spec §6.1). Phase 0 stands up the infra *and* a generator: `scripts/scaffold.sh` walks `gh --help` recursively, records the live command tree in `commands/_inventory.md`, and creates a node (`README`/`DRILLS`/`RECALL` from `_TEMPLATE/`) for every group plus every curated promotion in `commands/_promotions.txt`; `scripts/gen-index.sh` regenerates the README progress dashboard and `cheatsheet.md` from the on-disk tree. The empty-but-complete tree lands in one "scaffold" PR. Phase 1+ is a repeating authoring loop: one issue per command group → linked branch/worktree → fill that group's subtree → verify examples against the sandbox → draft PR → squash-merge. Workers never hand-edit the generated index files; the Lead re-runs `gen-index.sh` at merge. Each closed milestone ships a `gh release`.
 
-**Tech Stack:** `gh` 2.92.0, GitHub (Issues/PRs/Projects/Discussions/Milestones/Releases/Pages), GraphQL via `gh api graphql`, Markdown. No application code; "tests" are existence/link checks plus running the documented example commands against the sandbox repo.
+**Tech Stack:** `gh` 2.92.0, Bash (the two generator scripts), GitHub (Issues/PRs/Projects/Discussions/Milestones/Releases/Pages), GraphQL via `gh api graphql`, Markdown. No application code; "tests" are existence/link checks, generator idempotency checks, plus running the documented example commands against the sandbox repo.
 
-**Spec:** `docs/superpowers/specs/2026-05-26-gh-mastery-design.md` · **RFC:** Discussion #1 · **Board:** Project #14
+**Spec:** `docs/superpowers/specs/2026-05-26-gh-mastery-design.md` (rev. 2) · **RFC:** [Discussion #1 decision record](https://github.com/borahanmirzaii/gh-mastery/discussions/1#discussioncomment-17061267) · **Board:** Project #14
 
 ---
 
@@ -18,7 +18,11 @@
 - **Branch model:** branch from `dev`, PR into `dev`; promote `dev`→`main` for releases.
 - **Every PR body** contains `Closes #<issue>` (auto-added by `gh issue develop`).
 - **Identity** is already pinned (`borahanmirzaii`); the PreToolUse hook enforces it — don't pre-check.
-- **"Verify" steps** for content tasks mean: the file exists, internal links resolve, and the example commands in it actually run against the sandbox.
+- **Node:** a directory under `commands/` holding `README.md` + `DRILLS.md` + `RECALL.md`. A node exists for every group and every *promoted* subcommand. Shallow subcommands are documented inline in their parent node's files.
+- **Promotion rule of thumb:** a subcommand earns its own node when it has non-trivial flags, gotchas, or an underlying concept worth a dedicated page; otherwise it stays inline. Suggested promotions are listed per group in the Phase 1/2 tables — confirm against the rule while authoring.
+- **Generated files are never hand-edited:** `commands/_inventory.md`, the README `<!-- BEGIN PROGRESS -->…<!-- END PROGRESS -->` block, and `cheatsheet.md` are all produced by the scripts. Workers fill node files; the Lead re-runs `scripts/gen-index.sh`.
+- **Drill artifacts are namespaced by group** so parallel workers never collide in the sandbox: the `<group>` worker only creates sandbox objects prefixed `zz-<group>-*` (labels, issue titles, release tags, etc.) and cleans up after itself.
+- **"Verify" steps** for content tasks mean: the node files exist, internal links resolve, the node's README no longer contains `<!-- STUB -->`, and the example commands in it actually run against the sandbox.
 
 ---
 
@@ -42,13 +46,13 @@ gh repo create borahanmirzaii/gh-mastery-sandbox \
 Run: `gh repo view borahanmirzaii/gh-mastery-sandbox --json name,visibility --jq '.name + " " + .visibility'`
 Expected: `gh-mastery-sandbox PUBLIC`
 
-- [ ] **Step 3: Enable issues so issue/label/pr drills have a target**
+- [ ] **Step 3: Enable issues + projects so issue/label/pr drills have a target**
 
 ```bash
 gh repo edit borahanmirzaii/gh-mastery-sandbox --enable-issues --enable-projects
 ```
 
-(No commit — remote-only task.)
+(No commit — remote-only task. **Already done** if `gh repo view` in Step 2 succeeds.)
 
 ### Task 0.2: Create the label taxonomy
 
@@ -59,7 +63,7 @@ gh repo edit borahanmirzaii/gh-mastery-sandbox --enable-issues --enable-projects
 ```bash
 gh label create "kind:command" --color 1D76DB --description "A command-group learning issue (README+DRILLS+RECALL)" --force
 gh label create "kind:concept" --color 5319E7 --description "A concepts/ explainer doc" --force
-gh label create "kind:infra"   --color 0E8A16 --description "Sandbox, template, tooling, Pages, cheatsheet" --force
+gh label create "kind:infra"   --color 0E8A16 --description "Sandbox, template, scaffold scripts, Pages, cheatsheet" --force
 gh label create "meta"         --color FBCA04 --description "RFC / spec / plan / process" --force
 ```
 
@@ -97,12 +101,15 @@ Expected: all five titles listed.
 - Create: `commands/_TEMPLATE/DRILLS.md`
 - Create: `commands/_TEMPLATE/RECALL.md`
 
+The literal token `<group>` is replaced by `scaffold.sh` with the node's command path (`pr`, or `pr create` for a promoted subcommand). The `<!-- STUB -->` marker is how `gen-index.sh` tells a filled node from an empty one — **delete it when the node is authored.**
+
 - [ ] **Step 1: Write `commands/_TEMPLATE/README.md`**
 
 ````markdown
+<!-- STUB -->
 # `gh <group>`
 
-> **One-liner:** <what this command group does, in one sentence>.
+> **One-liner:** <what this command/subcommand does, in one sentence>.
 
 ## When you reach for it
 
@@ -111,9 +118,11 @@ e.g. "Step 1 of the Loop — you draft the brief as an issue body.">
 
 ## Subcommands
 
-| Subcommand | Purpose |
-|---|---|
-| `gh <group> <sub>` | <one line> |
+(Group nodes only — for a promoted subcommand node, delete this section.)
+
+| Subcommand | Purpose | Node? |
+|---|---|---|
+| `gh <group> <sub>` | <one line> | inline / [→ `<sub>/`](./<sub>/) |
 
 ## Key flags
 
@@ -125,7 +134,7 @@ Only the flags that matter, each with *when* to use it (not a raw `--help` dump)
 
 ```bash
 # <what this does>
-gh <group> <sub> --<flag> <value>
+gh <group> --<flag> <value>
 ```
 
 ## Gotchas
@@ -149,6 +158,7 @@ gh <group> <sub> --<flag> <value>
 
 > **Sandbox:** run everything against `borahanmirzaii/gh-mastery-sandbox`
 > (add `--repo borahanmirzaii/gh-mastery-sandbox` or `cd` into a clone) unless a drill says otherwise.
+> **Namespacing:** create only objects prefixed `zz-<group>-*` and delete them at the end, so parallel drills never collide.
 
 ## Drill 1 — <goal>
 
@@ -175,7 +185,7 @@ gh <group> ...
 ```
 </details>
 
-**Verify:** <end state you can check>.
+**Verify:** <end state you can check>. **Cleanup:** delete every `zz-<group>-*` object created.
 ````
 
 - [ ] **Step 3: Write `commands/_TEMPLATE/RECALL.md`**
@@ -183,7 +193,7 @@ gh <group> ...
 ````markdown
 # Recall — `gh <group>`
 
-Spaced-repetition self-test. Cover the answer, recall it, then check.
+Spaced-repetition self-test. Cover the answer, recall it, then check. (≥5 prompts.)
 
 **Q1.** <question about a flag / gotcha / subcommand>?
 
@@ -202,16 +212,213 @@ Expected: `DRILLS.md  README.md  RECALL.md`
 
 ```bash
 git add commands/_TEMPLATE/
-git commit -m "feat: canonical command-group template (reference/drills/recall)"
+git commit -m "feat: canonical command-node template (reference/drills/recall)"
 ```
 
-### Task 0.5: README dashboard + cheatsheet skeleton
+### Task 0.5: Write the tree generator `scripts/scaffold.sh` + promotions seed
 
 **Files:**
-- Modify: `README.md`
-- Create: `cheatsheet.md`
+- Create: `scripts/scaffold.sh`
+- Create: `commands/_promotions.txt`
 
-- [ ] **Step 1: Replace `README.md` with the dashboard**
+- [ ] **Step 1: Write `commands/_promotions.txt`** (curated promoted-subcommand nodes; one `group/sub` per line, `#` comments allowed). Seeded from the Phase 1/2 tables — extend as authoring confirms promotions.
+
+```text
+# Promoted subcommand nodes — each gets its own commands/<group>/<sub>/ node.
+# Lines are paths under commands/. Edit, then re-run scripts/scaffold.sh.
+auth/login
+auth/refresh
+repo/create
+repo/edit
+issue/create
+issue/develop
+pr/create
+pr/merge
+pr/review
+release/create
+run/watch
+workflow/run
+search/code
+secret/set
+project/item-list
+project/field-list
+```
+
+- [ ] **Step 2: Write `scripts/scaffold.sh`**
+
+```bash
+#!/usr/bin/env bash
+# scripts/scaffold.sh — generate/refresh the gh-mastery command tree from `gh` itself.
+#
+#   1. Discovers the live `gh` command tree → commands/_inventory.md
+#   2. Creates a node (README/DRILLS/RECALL from _TEMPLATE/) for every command
+#      group and every promotion listed in commands/_promotions.txt
+#   3. Idempotent: never overwrites a node that already exists
+#
+# Re-run after a `gh` upgrade, then `git diff commands/_inventory.md` to see what's new.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CMD="$ROOT/commands"
+TPL="$CMD/_TEMPLATE"
+PROMO="$CMD/_promotions.txt"
+INV="$CMD/_inventory.md"
+EXCLUDE="co"   # built-in alias for `pr checkout`, not a real command group
+
+# Parse a `gh ... --help` COMMANDS section into bare subcommand names.
+subcommands() {  # args: gh path (none = top level), e.g. pr  |  repo deploy-key
+  gh "$@" --help 2>/dev/null | awk '
+    /^[A-Z][A-Z ]*COMMANDS/{f=1; next}
+    /^[A-Z]/{f=0}
+    f && /^[[:space:]]+[a-z]/ {sub(/:$/,"",$1); print $1}
+  ' | sort -u
+}
+
+groups() { subcommands | grep -vxF "$EXCLUDE"; }
+
+# Create a node from the template if it does not already exist. Idempotent.
+make_node() {  # arg: path under commands/, e.g. pr  |  pr/create
+  local rel="$1" dir="$CMD/$1"
+  [[ -d "$dir" ]] && return 0
+  mkdir -p "$dir"
+  local label="${rel//\// }"          # pr/create -> "pr create"
+  for f in README DRILLS RECALL; do
+    sed "s|<group>|$label|g" "$TPL/$f.md" > "$dir/$f.md"
+  done
+  echo "created node: commands/$rel"
+}
+
+# 1. inventory (full live gh tree) ---------------------------------------
+{
+  echo "# gh command inventory — $(gh --version | head -1)"
+  echo "<!-- GENERATED by scripts/scaffold.sh — do not edit. Re-run after a gh upgrade and diff. -->"
+  echo
+  for g in $(groups); do
+    subs="$(subcommands "$g" | tr '\n' ' ')"
+    echo "- **$g** — ${subs:-_(no subcommands)_}"
+  done
+} > "$INV"
+echo "wrote $INV"
+
+# 2. group nodes ---------------------------------------------------------
+for g in $(groups); do make_node "$g"; done
+
+# 3. promoted subcommand nodes -------------------------------------------
+if [[ -f "$PROMO" ]]; then
+  grep -vE '^[[:space:]]*(#|$)' "$PROMO" | while read -r rel; do make_node "$rel"; done
+fi
+
+echo "scaffold complete. Next: scripts/gen-index.sh"
+```
+
+- [ ] **Step 3: Make it executable**
+
+```bash
+chmod +x scripts/scaffold.sh
+```
+
+- [ ] **Step 4: Dry verify the discovery (before generating anything real)**
+
+Run: `bash -c 'source <(sed -n "/^subcommands()/,/^}/p;/^groups()/,/^}/p" scripts/scaffold.sh); groups | tr "\n" " "'`
+Expected: the ~33 group names (`agent-task alias api attestation auth browse cache codespace …`) with **no** `co`.
+
+- [ ] **Step 5: Commit** (script only — running it is Task 0.7)
+
+```bash
+git add scripts/scaffold.sh commands/_promotions.txt
+git commit -m "feat: scaffold.sh — generate command tree + inventory from gh"
+```
+
+### Task 0.6: Write the index generator `scripts/gen-index.sh`
+
+**Files:**
+- Create: `scripts/gen-index.sh`
+- Modify: `README.md` (add the marker block in Task 0.7 Step 1)
+
+`gen-index.sh` rebuilds the README progress block and `cheatsheet.md` from the on-disk tree. A node counts as **done** when its `README.md` no longer contains `<!-- STUB -->`.
+
+- [ ] **Step 1: Write `scripts/gen-index.sh`**
+
+```bash
+#!/usr/bin/env bash
+# scripts/gen-index.sh — regenerate the README progress block + cheatsheet.md
+# from the on-disk commands/ tree. A node is "done" when its README lacks <!-- STUB -->.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CMD="$ROOT/commands"
+README="$ROOT/README.md"
+CHEAT="$ROOT/cheatsheet.md"
+
+# All node README paths except the template, sorted by command path.
+nodes() { find "$CMD" -mindepth 2 -name README.md -not -path "$CMD/_TEMPLATE/*" | sort; }
+
+node_path() { sed "s|$CMD/||; s|/README.md||" <<<"$1"; }   # commands/pr/create/README.md -> pr/create
+is_done()   { ! grep -q '<!-- STUB -->' "$1"; }
+oneliner()  { sed -n 's/^> \*\*One-liner:\*\* //p' "$1" | head -1; }
+
+# --- progress block (top-level groups only; promoted subs roll up) ------
+# Portable: iterate immediate subdirs via a glob (no GNU `find -printf`).
+progress() {
+  echo "<!-- BEGIN PROGRESS (generated by scripts/gen-index.sh) -->"
+  local total=0 done=0 d r mark
+  for d in "$CMD"/*/; do
+    r="$(basename "$d")"
+    [[ "$r" == _* ]] && continue          # skip _TEMPLATE and other _meta dirs
+    total=$((total+1)); mark=" "
+    if [[ -f "$CMD/$r/README.md" ]] && is_done "$CMD/$r/README.md"; then mark="x"; done=$((done+1)); fi
+    echo "- [$mark] $r"
+  done
+  echo
+  echo "_Progress: $done / $total groups._"
+  echo "<!-- END PROGRESS -->"
+}
+
+# Replace the marked block in README.md in place.
+tmp="$(mktemp)"
+awk -v repl="$(progress)" '
+  /<!-- BEGIN PROGRESS/ {print repl; skip=1}
+  /<!-- END PROGRESS -->/ {skip=0; next}
+  !skip
+' "$README" > "$tmp" && mv "$tmp" "$README"
+echo "updated $README"
+
+# --- cheatsheet (one block per node, in command-path order) -------------
+{
+  echo "# gh cheatsheet"
+  echo "<!-- GENERATED by scripts/gen-index.sh — do not edit. Edit the node READMEs instead. -->"
+  echo
+  for n in $(nodes); do
+    p="$(node_path "$n")"; one="$(oneliner "$n")"
+    if is_done "$n"; then echo "## gh ${p//\// }"; echo "${one:-_TODO_}"; echo
+    else echo "## gh ${p//\// } _(stub)_"; echo; fi
+  done
+} > "$CHEAT"
+echo "updated $CHEAT"
+```
+
+- [ ] **Step 2: Make it executable**
+
+```bash
+chmod +x scripts/gen-index.sh
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add scripts/gen-index.sh
+git commit -m "feat: gen-index.sh — regenerate README progress + cheatsheet from tree"
+```
+
+### Task 0.7: Generate the skeleton and land the "scaffold" PR
+
+This is the **scaffold-first** stage: one PR that lands the complete empty tree.
+
+**Files:**
+- Modify: `README.md` (replace the bootstrapping stub with the dashboard shell + markers)
+- Create (generated): `commands/<all groups>/…`, `commands/_inventory.md`, `cheatsheet.md`
+
+- [ ] **Step 1: Replace `README.md` with the dashboard shell** (static prose + the marker block `gen-index.sh` fills)
 
 ````markdown
 # gh-mastery
@@ -227,57 +434,58 @@ here is a worked example of the command it documents.
 
 ## How to use this repo
 
-Each command group lives in `commands/<group>/` with three files:
+`commands/` mirrors `gh`'s own command tree. Each node is a folder with three files:
 **`README.md`** (reference), **`DRILLS.md`** (hands-on, against the sandbox),
-**`RECALL.md`** (Q&A self-test). Read → drill → recall.
+**`RECALL.md`** (Q&A self-test). Read → drill → recall. Deeper folders = meatier
+subcommands. The progress list and `cheatsheet.md` are generated — see
+`scripts/gen-index.sh`.
 
 ## Progress
 
-### M1 — Core (daily drivers)
-- [ ] auth · [ ] repo · [ ] issue · [ ] pr · [ ] label · [ ] project · [ ] release
-- [ ] run · [ ] workflow · [ ] search · [ ] api · [ ] secret · [ ] variable
-
-### M2 — Long tail
-- [ ] browse · [ ] codespace · [ ] gist · [ ] org · [ ] status · [ ] alias · [ ] config
-- [ ] completion · [ ] extension · [ ] gpg-key · [ ] ssh-key · [ ] attestation
-- [ ] ruleset · [ ] agent-task · [ ] copilot · [ ] skill · [ ] cache · [ ] preview · [ ] licenses
-
-### M3 — Concepts
-- [ ] rest-vs-graphql · [ ] actions-model · [ ] rulesets · [ ] attestations-slsa · [ ] projects-v2-data-model
-
-### M4 — Publish (Pages)
-- [ ] Pages workflow
+<!-- BEGIN PROGRESS (generated by scripts/gen-index.sh) -->
+<!-- END PROGRESS -->
 
 ## Environment
 
 `gh` 2.92.0 · branch model `dev` → `main`.
 ````
 
-- [ ] **Step 2: Create `cheatsheet.md` skeleton**
-
-````markdown
-# gh cheatsheet
-
-Terse quick-reference, one block per command group. Filled in as each group lands.
-
-<!-- Each command-group PR appends its block here. -->
-````
-
-- [ ] **Step 3: Verify links resolve**
-
-Run: `grep -o '](docs/[^)]*' README.md` and confirm `docs/superpowers/specs/2026-05-26-gh-mastery-design.md` exists with `ls docs/superpowers/specs/`.
-Expected: file present.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 2: Run the generators**
 
 ```bash
-git add README.md cheatsheet.md
-git commit -m "feat: README progress dashboard + cheatsheet skeleton"
+scripts/scaffold.sh
+scripts/gen-index.sh
 ```
 
-### Task 0.6: File all command-group issues (M1 + M2)
+- [ ] **Step 3: Verify the skeleton** — every group has a 3-file node, promotions exist, index populated
 
-**Files:** none (remote only). Run from a clean `dev` checkout. Capture each issue number from output.
+Run:
+```bash
+echo "groups: $(find commands -mindepth 1 -maxdepth 1 -type d -not -name '_*' | wc -l)"
+echo "stub READMEs: $(grep -rl '<!-- STUB -->' commands --include=README.md | wc -l)"
+ls commands/pr commands/pr/create commands/api          # promoted + flat-node spot check
+grep -c '^- \[ \]' README.md                            # all groups unchecked initially
+```
+Expected: ~33 groups; every node README still a stub; `commands/pr/create/` exists; `commands/api/` exists with no subdirs; the progress list shows every group as `[ ]`.
+
+- [ ] **Step 4: Verify idempotency** — re-running creates nothing new
+
+Run: `scripts/scaffold.sh && git status --porcelain commands | grep -v '_inventory.md' | wc -l`
+Expected: `0` (only `_inventory.md` may differ, and only after a real `gh` upgrade).
+
+- [ ] **Step 5: Commit + open the scaffold PR**
+
+```bash
+git add README.md cheatsheet.md commands/
+git commit -m "feat: scaffold the full gh command tree (empty nodes + index)"
+git push -u origin dev
+```
+
+(Working directly on `dev` for the infra phase is fine; the per-group authoring loop branches off `dev` per node.)
+
+### Task 0.8: File all issues (groups + scaffold + concepts + Pages)
+
+**Files:** none (remote only). Capture each issue number from output.
 
 - [ ] **Step 1: File the 13 Core (M1) issues**
 
@@ -285,7 +493,7 @@ git commit -m "feat: README progress dashboard + cheatsheet skeleton"
 for G in auth repo issue pr label project release run workflow search api secret variable; do
   gh issue create \
     --title "Master \`gh $G\`" \
-    --body "Produce \`commands/$G/\` (README + DRILLS + RECALL) per the spec. Source: \`gh $G --help\` + https://cli.github.com/manual/gh_$G . Verify examples against the sandbox. Follow the Authoring Procedure in docs/superpowers/plans/2026-05-26-gh-mastery.md." \
+    --body "Author \`commands/$G/\` (group node + any promoted-subcommand nodes) per the spec. Source: \`gh $G --help\` + https://cli.github.com/manual/gh_$G . Verify examples against the sandbox (namespace \`zz-$G-*\`). Follow the Authoring Procedure in docs/superpowers/plans/2026-05-26-gh-mastery.md." \
     --label "kind:command" \
     --milestone "M1 — Core (daily drivers)" \
     --project "gh-mastery" \
@@ -299,7 +507,7 @@ done
 for G in browse codespace gist org status alias config completion extension gpg-key ssh-key attestation ruleset agent-task copilot skill cache preview licenses; do
   gh issue create \
     --title "Master \`gh $G\`" \
-    --body "Produce \`commands/$G/\` (README + DRILLS + RECALL) per the spec. Source: \`gh $G --help\` + https://cli.github.com/manual/gh_$G . Verify examples against the sandbox. Follow the Authoring Procedure in docs/superpowers/plans/2026-05-26-gh-mastery.md." \
+    --body "Author \`commands/$G/\` (group node + any promoted-subcommand nodes) per the spec. Source: \`gh $G --help\` + https://cli.github.com/manual/gh_$G . Verify examples against the sandbox (namespace \`zz-$G-*\`). Follow the Authoring Procedure in docs/superpowers/plans/2026-05-26-gh-mastery.md." \
     --label "kind:command" \
     --milestone "M2 — Long tail" \
     --project "gh-mastery" \
@@ -307,16 +515,7 @@ for G in browse codespace gist org status alias config completion extension gpg-
 done
 ```
 
-- [ ] **Step 3: Verify counts**
-
-Run: `gh issue list --label kind:command --json number --jq 'length'`
-Expected: `32`.
-
-### Task 0.7: File the Concepts (M3) and Pages (M4) issues
-
-**Files:** none (remote only)
-
-- [ ] **Step 1: File the 5 concept issues**
+- [ ] **Step 3: File the 5 concept (M3) issues**
 
 ```bash
 for C in rest-vs-graphql actions-model rulesets attestations-slsa projects-v2-data-model; do
@@ -330,7 +529,7 @@ for C in rest-vs-graphql actions-model rulesets attestations-slsa projects-v2-da
 done
 ```
 
-- [ ] **Step 2: File the Pages issue**
+- [ ] **Step 4: File the Pages (M4) issue**
 
 ```bash
 gh issue create \
@@ -342,21 +541,20 @@ gh issue create \
   --assignee @me
 ```
 
-- [ ] **Step 3: Verify the board is populated**
+- [ ] **Step 5: Verify counts**
 
-Run: `gh project item-list 14 --owner borahanmirzaii --format json --jq '.items | length'`
-Expected: `38` (32 command + 5 concept + 1 Pages).
+Run: `gh issue list --label kind:command --json number --jq 'length'` → Expected `32`.
+Run: `gh project item-list 14 --owner borahanmirzaii --format json --jq '.items | length'` → Expected `38` (32 command + 5 concept + 1 Pages).
 
-### Task 0.8: Release M0
+### Task 0.9: Release M0
 
 - [ ] **Step 1: Promote `dev` → `main` and tag the infra checkpoint**
 
 ```bash
-git push origin dev
-gh pr create --base main --head dev --title "Release v0.1.0 — infra scaffold" --fill
+gh pr create --base main --head dev --title "Release v0.1.0 — infra + scaffold" --fill
 PR=$(gh pr view --json number --jq .number)
 gh pr merge "$PR" --squash --delete-branch=false
-gh release create v0.1.0 --target main --generate-notes --title "v0.1.0 — infra scaffold"
+gh release create v0.1.0 --target main --generate-notes --title "v0.1.0 — infra + scaffold"
 ```
 
 - [ ] **Step 2: Verify the release**
@@ -368,10 +566,9 @@ Expected: `v0.1.0`
 
 ## The Authoring Procedure (shared by every command-group task in Phase 1+)
 
-Every group task in Phase 1 and Phase 2 follows these exact steps. Parameters per
-group come from the table in each task: **`<group>`** and any **must-cover gotchas**.
+Every group task in Phase 1 and Phase 2 follows these exact steps. Parameters per group come from the table in each phase: **`<group>`**, **suggested promotions**, and **must-cover gotchas**. The empty nodes already exist (Task 0.7) — this fills them.
 
-- [ ] **A. Create the linked branch from the group's issue**
+- [ ] **A. Create the linked branch/worktree from the group's issue**
 
 ```bash
 gh issue develop <issue-num> --base dev --checkout
@@ -381,33 +578,36 @@ gh issue develop <issue-num> --base dev --checkout
 
 ```bash
 gh <group> --help
-for SUB in $(gh <group> --help | sed -n '/COMMANDS/,/FLAGS/p' | awk '{print $1}' | grep -v -E 'COMMANDS|FLAGS|^$'); do echo "== $SUB =="; gh <group> "$SUB" --help; done
+for SUB in $(gh <group> --help | awk '/^[A-Z][A-Z ]*COMMANDS/{f=1;next}/^[A-Z]/{f=0}f && /^[[:space:]]+[a-z]/{sub(/:$/,"",$1);print $1}'); do
+  echo "== $SUB =="; gh <group> "$SUB" --help
+done
 ```
 Also read the manual page `https://cli.github.com/manual/gh_<group>` (WebFetch). Where the installed `--help` and the manual disagree, the installed version wins (note it as a gotcha).
 
-- [ ] **C. Instantiate the template**
+- [ ] **C. Confirm promotions, then fill the subtree**
 
-```bash
-mkdir -p commands/<group>
-cp commands/_TEMPLATE/README.md commands/<group>/README.md
-cp commands/_TEMPLATE/DRILLS.md commands/<group>/DRILLS.md
-cp commands/_TEMPLATE/RECALL.md commands/<group>/RECALL.md
-```
-Fill in all three: replace every `<...>` placeholder. Reference page covers all subcommands and every flag that matters; ≥3 examples; the must-cover gotchas from the task table. Drills run against the sandbox and have a checkable verify. Recall has ≥5 Q&A covering the gotchas + key flags.
+Compare the suggested promotions for this group (phase table) against the **promotion rule of thumb**. If a subcommand should be promoted but has no node, add it to `commands/_promotions.txt` and re-run `scripts/scaffold.sh` (creates only the new node). Then edit every file in `commands/<group>/` and each promoted `commands/<group>/<sub>/`:
+- Replace every `<...>` placeholder and **delete the `<!-- STUB -->` line** from each authored README.
+- README covers all subcommands (promoted ones via the Subcommands table linking to their node; shallow ones inline as sections), every flag that matters, ≥3 examples, and the must-cover gotchas.
+- DRILLS run against the sandbox using the `zz-<group>-*` namespace and have a checkable verify + cleanup.
+- RECALL has ≥5 Q&A covering the gotchas + key flags.
 
 - [ ] **D. Verify the examples actually work**
 
-Run each example/drill command against `borahanmirzaii/gh-mastery-sandbox`. Fix any that don't behave as the file claims. (Read-only examples can target any repo.)
+Run each example/drill command against `borahanmirzaii/gh-mastery-sandbox` (read-only examples can target any repo). Fix any that don't behave as written. Confirm no `zz-<group>-*` leftovers remain after drill cleanup.
 Expected: every documented command produces the stated outcome.
 
-- [ ] **E. Update the dashboard + cheatsheet**
-
-Tick `[x] <group>` in `README.md`'s progress list and append a `## gh <group>` block to `cheatsheet.md`.
-
-- [ ] **F. Commit, push, open the PR**
+- [ ] **E. Regenerate the index (do NOT hand-edit README/cheatsheet)**
 
 ```bash
-git add commands/<group>/ README.md cheatsheet.md
+scripts/gen-index.sh
+```
+This ticks `<group>` in the README progress block and refreshes its `cheatsheet.md` block from the now-filled node.
+
+- [ ] **F. Commit, push, open the draft PR**
+
+```bash
+git add commands/<group>/ README.md cheatsheet.md commands/_promotions.txt
 git commit -m "feat(<group>): reference + drills + recall for gh <group>"
 git push -u origin "$(git branch --show-current)"
 gh pr create --base dev --fill --draft
@@ -417,36 +617,33 @@ The PR auto-includes `Closes #<issue-num>` because the branch came from `gh issu
 - [ ] **G. Review + merge (Lead)**
 
 ```bash
-gh pr ready    # flip out of draft when done
+gh pr ready                              # flip out of draft when done
 gh pr merge <pr-num> --squash --delete-branch
+scripts/gen-index.sh && git commit -am "chore: refresh index after #<issue-num>" || true
 ```
-Issue auto-closes; tick the board.
+Issue auto-closes. The post-merge `gen-index.sh` reconciles the dashboard across concurrently-merged PRs (the conflict-killer for the generated files).
 
 ---
 
 ## Phase 1 — Core command groups (Milestone 1)
 
-Each task = the Authoring Procedure (A–G) applied with these parameters. Do them
-in listed order (roughly the solo-builder Loop order). `<issue-num>` is the issue
-filed in Task 0.6 for that group.
+Each task = the Authoring Procedure (A–G) with these parameters. Do them in listed order (roughly the solo-builder Loop order). Run in **waves of ~5–6 workers** (spec §6.1). `<issue-num>` is the issue filed in Task 0.8 for that group.
 
-| Task | `<group>` | Must-cover gotchas |
-|---|---|---|
-| 1.1 | `auth` | `gh auth refresh -s` is identity-ambiguous on multi-account; `auth status` shows token scopes; `auth switch` vs per-identity `GH_TOKEN`. |
-| 1.2 | `repo` | `gh repo create --source=. --push` vs `--clone`; `gh repo edit` feature flags; no `gh repo transfer` (use `gh api -X POST .../transfer`). |
-| 1.3 | `issue` | Body links must be absolute URLs; `gh issue develop` creates the server-side branch link; `--body-file -` reads stdin. |
-| 1.4 | `pr` | `--fill` autofills from commits; `Closes #N` in body auto-closes the issue; `--squash --delete-branch` is the convention. |
-| 1.5 | `label` | `gh label clone <repo>` copies an entire set; `--force` upserts. |
-| 1.6 | `project` | v2 only; built-in Status field options edit via `updateProjectV2Field` (GraphQL), not `field-edit`; `--owner @me`. |
-| 1.7 | `release` | `--generate-notes`; `--target`; asset upload `file#"Label"` syntax; `--verify-tag`. |
-| 1.8 | `run` | `gh run watch --exit-status` for CI gating; `--log-failed`; `view --json`. |
-| 1.9 | `workflow` | `workflow run -f key=val` dispatch inputs; `--ref`; enable/disable. |
-| 1.10 | `search` | qualifier syntax vs flags; `--json` piping to `jq`; `search code` needs auth scope. |
-| 1.11 | `api` | `-f` (string) vs `-F` (typed/@file); `--paginate`; `{owner}/{repo}` placeholders; `--jq`; `graphql` subcommand. |
-| 1.12 | `secret` | repo vs org vs env scope; `--app actions/codespaces/dependabot`; values never echoed. |
-| 1.13 | `variable` | like `secret` but non-encrypted; `--env`/`--org` scoping. |
-
-(Tasks 1.1–1.13 each: run Authoring Procedure A–G with the row's `<group>` and gotchas.)
+| Task | `<group>` | Suggested promotions | Must-cover gotchas |
+|---|---|---|---|
+| 1.1 | `auth` | `login`, `refresh` | `gh auth refresh -s` is identity-ambiguous on multi-account; `auth status` shows token scopes; `auth switch` vs per-identity `GH_TOKEN`. |
+| 1.2 | `repo` | `create`, `edit` | `gh repo create --source=. --push` vs `--clone`; `gh repo edit` feature flags; no `gh repo transfer` (use `gh api -X POST .../transfer`). |
+| 1.3 | `issue` | `create`, `develop` | Body links must be absolute URLs; `gh issue develop` creates the server-side branch link; `--body-file -` reads stdin. |
+| 1.4 | `pr` | `create`, `merge`, `review` | `--fill` autofills from commits; `Closes #N` in body auto-closes the issue; `--squash --delete-branch` is the convention. |
+| 1.5 | `label` | _(none — shallow)_ | `gh label clone <repo>` copies an entire set; `--force` upserts. |
+| 1.6 | `project` | `item-list`, `field-list` | v2 only; built-in Status field options edit via `updateProjectV2Field` (GraphQL), not `field-edit`; `--owner @me`. |
+| 1.7 | `release` | `create` | `--generate-notes`; `--target`; asset upload `file#"Label"` syntax; `--verify-tag`. |
+| 1.8 | `run` | `watch` | `gh run watch --exit-status` for CI gating; `--log-failed`; `view --json`. |
+| 1.9 | `workflow` | `run` | `workflow run -f key=val` dispatch inputs; `--ref`; enable/disable. |
+| 1.10 | `search` | `code` | qualifier syntax vs flags; `--json` piping to `jq`; `search code` needs auth scope. |
+| 1.11 | `api` | _(none — no subcommands)_ | `-f` (string) vs `-F` (typed/@file); `--paginate`; `{owner}/{repo}` placeholders; `--jq`; `graphql` subcommand. |
+| 1.12 | `secret` | `set` | repo vs org vs env scope; `--app actions/codespaces/dependabot`; values never echoed. |
+| 1.13 | `variable` | _(none — shallow)_ | like `secret` but non-encrypted; `--env`/`--org` scoping. |
 
 - [ ] **After all 13 merge: Release M1**
 
@@ -460,46 +657,41 @@ gh release create v0.2.0 --target main --generate-notes --title "v0.2.0 — Core
 
 ## Phase 2 — Long-tail command groups (Milestone 2)
 
-Same Authoring Procedure (A–G), one task per group, parameters below. Order is not
-critical; suggested grouping by theme.
+Same Authoring Procedure (A–G), one task per group. Order is not critical; grouped by theme. Most long-tail groups are shallow → no promotions.
 
-| Task | `<group>` | Must-cover gotchas |
-|---|---|---|
-| 2.1 | `browse` | `--no-browser` prints URL; `-s` for settings; deep-links to files/lines. |
-| 2.2 | `codespace` | `cs` alias; `ssh`/`cp`/`ports`; billing implications. |
-| 2.3 | `gist` | secret vs public default; `gist create -` from stdin; `--web`. |
-| 2.4 | `org` | `org list` only; most org ops live under `gh api`. |
-| 2.5 | `status` | cross-repo digest; `-e` to exclude; auth-scoped. |
-| 2.6 | `alias` | `alias set` with `--shell`; expansion with `$1`; `co` is a built-in alias example. |
-| 2.7 | `config` | `config set` keys (editor, pager, prompt, git_protocol); host-scoped. |
-| 2.8 | `completion` | `-s zsh/bash/fish`; where to source it. |
-| 2.9 | `extension` | `extension install owner/repo`; `gh ext` alias; `--precompiled`. |
-| 2.10 | `gpg-key` | add/list/delete; relation to verified commits. |
-| 2.11 | `ssh-key` | add `--type authentication/signing`; relation to SSH remotes. |
-| 2.12 | `attestation` | `verify`/`download`; SLSA provenance; needs `concepts/attestations-slsa.md`. |
-| 2.13 | `ruleset` | `ruleset list/view/check`; read-only in CLI; needs `concepts/rulesets.md`. |
-| 2.14 | `agent-task` | preview; create/list/view agent tasks. |
-| 2.15 | `copilot` | preview; launches Copilot CLI; auth/subscription note. |
-| 2.16 | `skill` | preview; install/manage agent skills. |
-| 2.17 | `cache` | `cache list/delete --all`; Actions cache scope. |
-| 2.18 | `preview` | `preview` feature-flag mechanics. |
-| 2.19 | `licenses` | `licenses list/view`; third-party license info. |
+| Task | `<group>` | Suggested promotions | Must-cover gotchas |
+|---|---|---|---|
+| 2.1 | `browse` | _(none)_ | `--no-browser` prints URL; `-s` for settings; deep-links to files/lines. |
+| 2.2 | `codespace` | `ssh`, `ports` | `cs` alias; `cp`; billing implications. |
+| 2.3 | `gist` | `create` | secret vs public default; `gist create -` from stdin; `--web`. |
+| 2.4 | `org` | _(none — `list` only)_ | most org ops live under `gh api`. |
+| 2.5 | `status` | _(none)_ | cross-repo digest; `-e` to exclude; auth-scoped. |
+| 2.6 | `alias` | _(none)_ | `alias set` with `--shell`; expansion with `$1`; `co` is a built-in alias example. |
+| 2.7 | `config` | _(none)_ | `config set` keys (editor, pager, prompt, git_protocol); host-scoped. |
+| 2.8 | `completion` | _(none)_ | `-s zsh/bash/fish`; where to source it. |
+| 2.9 | `extension` | `install` | `extension install owner/repo`; `gh ext` alias; `--precompiled`. |
+| 2.10 | `gpg-key` | _(none)_ | add/list/delete; relation to verified commits. |
+| 2.11 | `ssh-key` | _(none)_ | add `--type authentication/signing`; relation to SSH remotes. |
+| 2.12 | `attestation` | `verify` | `verify`/`download`; SLSA provenance; needs `concepts/attestations-slsa.md`. |
+| 2.13 | `ruleset` | _(none — read-only in CLI)_ | `ruleset list/view/check`; needs `concepts/rulesets.md`. |
+| 2.14 | `agent-task` | _(none)_ | preview; create/list/view agent tasks. |
+| 2.15 | `copilot` | _(none)_ | preview; launches Copilot CLI; auth/subscription note. |
+| 2.16 | `skill` | _(none)_ | preview; install/manage agent skills. |
+| 2.17 | `cache` | _(none)_ | `cache list/delete --all`; Actions cache scope. |
+| 2.18 | `preview` | _(none)_ | `preview` feature-flag mechanics. |
+| 2.19 | `licenses` | _(none)_ | `licenses list/view`; third-party license info. |
 
-Also fold the help-topics (`formatting`, `exit-codes`, `environment`, `accessibility`)
-into the relevant pages (e.g. `--json`/`--jq`/`--template` formatting under `api` and
-`search`) rather than separate dirs.
+Fold the help-topics (`formatting`, `exit-codes`, `environment`, `accessibility`) into the relevant pages (e.g. `--json`/`--jq`/`--template` formatting under `api` and `search`) rather than separate nodes.
 
-- [ ] **After all 19 merge: Release M2** (`v0.3.0`, same pattern as above.)
+- [ ] **After all 19 merge: Release M2** (`v0.3.0`, same pattern.)
 
 ---
 
 ## Phase 3 — Concepts (Milestone 3)
 
-One task per concept doc (issues from Task 0.7). Each: branch from issue, write
-`concepts/<name>.md` (plain explainer, link back from the command READMEs that need
-it), verify cross-links, PR, squash-merge.
+One task per concept doc (issues from Task 0.8 Step 3). Each: branch from issue, write `concepts/<name>.md` (plain explainer), add cross-links from the command READMEs that need it, verify links, PR, squash-merge.
 
-| Task | `concepts/<name>.md` | Anchored by commands |
+| Task | `concepts/<name>.md` | Linked from |
 |---|---|---|
 | 3.1 | `rest-vs-graphql` | `api` |
 | 3.2 | `actions-model` | `run`, `workflow`, `cache` |
@@ -520,7 +712,7 @@ it), verify cross-links, PR, squash-merge.
 
 - [ ] **Step 1: Branch from the Pages issue** — `gh issue develop <num> --base dev --checkout`.
 
-- [ ] **Step 2: Write `.github/workflows/pages.yml`** — a workflow that renders `README.md`, `commands/**`, and `concepts/**` to a static site and deploys via `actions/deploy-pages`. (Concrete YAML to be finalized in the task using the then-current action versions; verify with `gh workflow view` + `gh run watch --exit-status`.)
+- [ ] **Step 2: Write `.github/workflows/pages.yml`** — a workflow that renders `README.md`, `commands/**`, and `concepts/**` to a static site and deploys via `actions/deploy-pages`. (Concrete YAML finalized in the task using the then-current action versions; verify with `gh workflow view` + `gh run watch --exit-status`.)
 
 - [ ] **Step 3: Enable Pages source = GitHub Actions**
 
@@ -530,7 +722,7 @@ gh api -X POST repos/borahanmirzaii/gh-mastery/pages -f build_type=workflow 2>/d
 
 - [ ] **Step 4: Verify deploy**
 
-Run: `gh run list --workflow pages.yml --limit 1` then `gh run watch <id> --exit-status`; then `gh api repos/borahanmirzaii/gh-mastery/pages --jq .html_url`.
+Run: `gh run list --workflow pages.yml --limit 1`, then `gh run watch <id> --exit-status`, then `gh api repos/borahanmirzaii/gh-mastery/pages --jq .html_url`.
 Expected: a live Pages URL.
 
 - [ ] **Step 5: PR + merge + Release `v1.0.0`** (`--generate-notes`).
@@ -540,16 +732,17 @@ Expected: a live Pages URL.
 ## Self-Review
 
 **Spec coverage:**
-- §3 mastery unit (reference/drills/recall) → Task 0.4 template + Authoring Procedure C. ✓
-- §4 layout → Tasks 0.4, 0.5, Phases 1–4. ✓
-- §5 sandbox → Task 0.1; drills target it (Procedure D). ✓
-- §6 milestones + issue-per-group → Tasks 0.3, 0.6, 0.7; Phases 1–3. ✓
+- §2 build-with-gh → every remote step uses `gh`; scaffold/index scripts are themselves `gh` lessons. ✓
+- §3 mastery unit (node = reference/drills/recall; group + promoted subcommands; promotion rule) → Task 0.4 template + 0.5 promotions + Authoring Procedure C. ✓
+- §4 recursive tree + generated index → Tasks 0.5 (`scaffold.sh`/`_inventory.md`), 0.6 (`gen-index.sh`), 0.7 (skeleton). ✓
+- §5 sandbox → Task 0.1; drills target it with `zz-<group>-*` namespacing (Procedure C/D). ✓
+- §6 milestones + issue-per-group + subtree-per-PR → Tasks 0.3, 0.8; Phases 1–3. ✓
+- §6.1 build model (scaffold-first, parallel waves, generated index, namespaced drills) → Task 0.7 + Phase 1 wave note + Procedure E/G + Conventions. ✓
 - §7 Pages → Phase 4. ✓
 - §8 labels → Task 0.2. ✓
 - §9 sources (installed wins) → Procedure B. ✓
 - §10 out-of-scope → no tasks touch the terminal stack / Anki / CI harness. ✓
-- §2 build-with-gh → every remote step uses `gh`. ✓
 
-**Placeholder scan:** The only deliberately deferred concrete artifact is the Pages YAML (Task 4.1 Step 2), because action versions should be pinned at execution time, not now — flagged explicitly, not a silent TODO. All infra/issue commands are concrete and runnable.
+**Placeholder scan:** the only deferred concrete artifact is the Pages YAML (Task 4.1 Step 2) — flagged explicitly because action versions should be pinned at execution time. Both generator scripts are written in full; the `<...>` tokens in `_TEMPLATE/` are intentional fill-in markers, not plan gaps.
 
-**Consistency:** milestone titles match between Task 0.3, the issue-creation `--milestone` flags (0.6/0.7), and the release phases. Group list (13 core + 19 tail) matches the spec §6 and the README dashboard. Issue count 32 (command) + 5 (concept) + 1 (Pages) = 38 matches Task 0.7 Step 3.
+**Consistency:** milestone titles match across Task 0.3, the `--milestone` flags (0.8), and the release phases. Group list (13 core + 19 tail) matches spec §6 and the discovery output (`co` excluded as a built-in alias). Counts: 32 command + 5 concept + 1 Pages = 38 (Task 0.8 Step 5). The discovery awk in Procedure B matches `scaffold.sh`'s `subcommands()`; `<!-- STUB -->` is written by the template (0.4), consumed by `gen-index.sh` (0.6), and deleted in Procedure C — consistent across tasks.
