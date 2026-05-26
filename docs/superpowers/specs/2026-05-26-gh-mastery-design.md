@@ -1,8 +1,8 @@
 # gh-mastery — Design Spec
 
-**Date:** 2026-05-26
-**Status:** Approved (defaults bundle + Q6=gh-concepts-only, confirmed in chat)
-**RFC:** https://github.com/borahanmirzaii/gh-mastery/discussions/1
+**Date:** 2026-05-26 (rev. 2 — recursive tree + build model)
+**Status:** Approved (defaults bundle + Q6=gh-concepts-only; structural revision locked in RFC #1)
+**RFC:** https://github.com/borahanmirzaii/gh-mastery/discussions/1 — see the [decision-record comment](https://github.com/borahanmirzaii/gh-mastery/discussions/1#discussioncomment-17061267)
 **Repo:** https://github.com/borahanmirzaii/gh-mastery (public)
 
 ## 1. Goal
@@ -29,8 +29,14 @@ pinning a Discussion, creating Discussion categories).
 
 ## 3. The mastery unit (Q1 = reference + drills, Q5 = recall)
 
-Every command group is a directory under `commands/<group>/` holding three files.
-A canonical `commands/_TEMPLATE/` defines the exact shape; every group conforms.
+The unit is a **node in the command tree** — a directory holding three files. A node
+exists for every command group (`commands/<group>/`) and for every *subcommand meaty
+enough to deserve its own page* (`commands/<group>/<sub>/`). Shallow or trivial
+subcommands (e.g. `gh pr close`, `gh label delete`) are documented as sections inside
+their parent node's files, not spun out into thin folders. *Promotion rule of thumb:*
+a subcommand earns its own node when it has non-trivial flags, gotchas, or an underlying
+concept worth a dedicated page; otherwise it stays inline. A canonical
+`commands/_TEMPLATE/` defines the exact shape; every node conforms.
 
 ### 3.1 `README.md` — annotated reference
 - **What it does** — one or two sentences.
@@ -52,15 +58,27 @@ A canonical `commands/_TEMPLATE/` defines the exact shape; every group conforms.
 
 ## 4. Repository layout (Q3 = in-repo markdown is source of truth)
 
+`commands/` is a **recursive tree shaped exactly like `gh`'s own command tree**: one
+node per command group, and a nested node per *promoted* subcommand (§3). The
+`README.md` progress dashboard and `cheatsheet.md` are **generated from the tree**
+(never hand-edited) by `scripts/scaffold.sh`, which also creates and refreshes the tree
+itself by walking `gh --help` recursively (§6.1).
+
 ```
 gh-mastery/
-├── README.md                       # mission, how-to-use, progress dashboard, links
-├── cheatsheet.md                   # aggregated terse quick-ref across all groups
+├── README.md                       # mission, how-to-use, GENERATED progress dashboard, links
+├── cheatsheet.md                   # GENERATED terse quick-ref across all groups
+├── scripts/
+│   └── scaffold.sh                 # walks `gh --help` recursively → tree + stubs; regenerates README + cheatsheet
 ├── commands/
 │   ├── _TEMPLATE/                  # canonical README/DRILLS/RECALL shape
-│   ├── auth/  repo/  issue/  pr/  release/  project/  label/
-│   ├── run/  workflow/  api/  search/  secret/  variable/        # ← Milestone 1
-│   └── browse/ codespace/ gist/ org/ status/ alias/ config/ ...  # ← Milestone 2
+│   ├── auth/                       # group node: README.md DRILLS.md RECALL.md
+│   │   └── token/                  # promoted subcommand → its own node (3 files)
+│   ├── pr/                         # group node; close/reopen/lock/... documented inline (shallow)
+│   │   ├── create/                 # promoted subcommand node
+│   │   └── review/                 # promoted subcommand node
+│   ├── api/                        # no subcommands → single node
+│   └── ...                         # one node per group, mirroring `gh` (M1 core first, then M2 long tail)
 ├── concepts/                       # Q6: GitHub concepts behind the commands
 │   ├── rest-vs-graphql.md
 │   ├── actions-model.md
@@ -69,7 +87,7 @@ gh-mastery/
 │   └── projects-v2-data-model.md
 ├── docs/superpowers/
 │   ├── specs/2026-05-26-gh-mastery-design.md
-│   └── plans/2026-05-26-gh-mastery-plan.md
+│   └── plans/2026-05-26-gh-mastery.md
 └── .github/workflows/pages.yml     # added in the Pages milestone
 ```
 
@@ -88,9 +106,10 @@ the first infra issue. DRILLS pages assume the learner is targeting the sandbox
 ## 6. Coverage, milestones, and the issue model (Q2 = core-first)
 
 One **issue per command group**; one **PR per issue**; merging a PR delivers that
-group's three files. Issues are grouped into milestones:
+group's subtree (its three files plus any promoted-subcommand nodes). Issues are
+grouped into milestones:
 
-- **Milestone 0 — Infra:** sandbox repo, `_TEMPLATE/`, label taxonomy, cheatsheet skeleton, README dashboard.
+- **Milestone 0 — Infra:** sandbox repo, `_TEMPLATE/`, the `scripts/scaffold.sh` tree-and-index generator (§6.1), label taxonomy, generated cheatsheet + README dashboard.
 - **Milestone 1 — Core (daily drivers):** `auth`, `repo`, `issue`, `pr`, `label`, `project`, `release`, `run`, `workflow`, `search`, `api`, `secret`, `variable`. Ordered roughly by where they appear in the solo-builder loop.
 - **Milestone 2 — Long tail:** `browse`, `codespace`, `gist`, `org`, `status`, `alias`, `config`, `completion`, `extension`, `gpg-key`, `ssh-key`, `attestation`, `ruleset`, `agent-task`, `copilot`, `skill`, `cache`, `preview`, `licenses`, plus the help topics (`formatting`, `exit-codes`, `environment`, `accessibility`).
 - **Milestone 3 — Concepts:** the `concepts/` docs.
@@ -98,6 +117,27 @@ group's three files. Issues are grouped into milestones:
 
 Each closed milestone ships a `gh release` (`--generate-notes`) marking that chunk
 as "learned."
+
+## 6.1 Build model — scaffold-from-`gh`, then parallel workers in waves
+
+Locked in RFC #1. The build is designed to neutralize the three failure modes of
+parallel doc-work: **structure drift, shared-file merge conflicts, sandbox collisions.**
+
+1. **Scaffold first.** `scripts/scaffold.sh` walks `gh --help` recursively and
+   generates the entire empty tree + templated stubs in one PR — so the structure is
+   complete and consistent before any prose is written, and future `gh` releases are
+   absorbed by re-running it. (The script is itself a worked `gh` + scripting lesson.)
+2. **Then fan out, one worker per group, in waves** (~5–6 in flight). Each worker
+   builds one group's subtree (group node + its promoted-subcommand nodes) on its own
+   branch/worktree and opens a draft PR; the Lead reviews and squash-merges.
+3. **Generate the dashboard + cheatsheet from the tree.** Workers never hand-edit
+   `README.md` or `cheatsheet.md`; `scaffold.sh` regenerates them at merge time —
+   removing the shared-file conflict entirely.
+4. **Namespace drill artifacts by group.** Each group's DRILLS create sandbox objects
+   under a group prefix (e.g. `zz-label-*`) so parallel verification never collides.
+
+The Lead role, worktree mechanics, and review/merge loop follow the `solo-builder-flow`
+skill.
 
 ## 7. Publishing (Pages) — later milestone
 
