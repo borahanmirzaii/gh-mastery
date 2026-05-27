@@ -1,0 +1,18 @@
+# Promoted subcommand nodes — each gets its own commands/<group>/<sub>/ node.
+# Lines are paths under commands/. Edit, then re-run scripts/scaffold.sh.
+auth/login
+auth/refresh
+repo/create
+repo/edit
+issue/create
+issue/develop
+pr/create
+pr/merge
+pr/review
+release/create
+run/watch
+workflow/run
+search/code
+secret/set
+project/item-list
+project/field-list
