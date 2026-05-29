@@ -600,31 +600,36 @@ Compare the suggested promotions for this group (phase table) against the **prom
 Run each example/drill command against `borahanmirzaii/gh-mastery-sandbox` (read-only examples can target any repo). Fix any that don't behave as written. Confirm no `zz-<group>-*` leftovers remain after drill cleanup.
 Expected: every documented command produces the stated outcome.
 
-- [ ] **E. Regenerate the index (do NOT hand-edit README/cheatsheet)**
+- [ ] **E. Verify the index update locally, then DISCARD it**
 
 ```bash
-scripts/gen-index.sh
+scripts/gen-index.sh                          # local verification only
+git checkout -- README.md cheatsheet.md       # discard — Lead regenerates post-merge
 ```
-This ticks `<group>` in the README progress block and refreshes its `cheatsheet.md` block from the now-filled node.
+Run `gen-index.sh` to confirm your group now shows `[x]` in the README progress block and a non-stub entry in `cheatsheet.md`. Then **discard those changes**. `README.md` and `cheatsheet.md` are regenerated centrally by the Lead after each merge — that is the shared-file conflict-killer in §6.1. If workers committed these files, every pair of concurrent PRs would conflict on the same progress lines.
 
 - [ ] **F. Commit, push, open the draft PR**
 
 ```bash
-git add commands/<group>/ README.md cheatsheet.md commands/_promotions.txt
+git add commands/<group>/ commands/_promotions.txt
 git commit -m "feat(<group>): reference + drills + recall for gh <group>"
 git push -u origin "$(git branch --show-current)"
 gh pr create --base dev --fill --draft
 ```
-The PR auto-includes `Closes #<issue-num>` because the branch came from `gh issue develop`.
+`README.md` and `cheatsheet.md` are **deliberately excluded** — Lead regenerates them post-merge so concurrent worker PRs never conflict on those files (§6.1). The PR auto-includes `Closes #<issue-num>` because the branch came from `gh issue develop`.
 
-- [ ] **G. Review + merge (Lead)**
+- [ ] **G. Review + merge + refresh index (Lead, sequential per PR)**
 
 ```bash
 gh pr ready                              # flip out of draft when done
 gh pr merge <pr-num> --squash --delete-branch
-scripts/gen-index.sh && git commit -am "chore: refresh index after #<issue-num>" || true
+git checkout dev && git pull --rebase origin dev
+scripts/gen-index.sh
+git add README.md cheatsheet.md
+git commit -m "chore: refresh index after #<issue-num>" 2>/dev/null || true
+git push origin dev
 ```
-Issue auto-closes. The post-merge `gen-index.sh` reconciles the dashboard across concurrently-merged PRs (the conflict-killer for the generated files).
+Issue auto-closes. Lead is the **sole author** of `README.md`/`cheatsheet.md` changes, run sequentially after each merge — that is the conflict-killer (§6.1). Concurrent worker PRs never touch these files, so they never collide there.
 
 ---
 
