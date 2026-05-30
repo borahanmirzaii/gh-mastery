@@ -91,9 +91,11 @@ Create, clone, fork, view, and manage GitHub repositories from the command line.
 
 ## gh run watch _(stub)_
 
-## gh search code _(stub)_
+## gh search code
+Search within file contents across all of GitHub (or a specific repo/owner) and return matching code snippets with their file paths and URLs.
 
-## gh search _(stub)_
+## gh search
+Search across all of GitHub — code, commits, issues, pull requests, and repositories — from the terminal.
 
 ## gh secret _(stub)_
 
