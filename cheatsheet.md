@@ -33,11 +33,14 @@
 
 ## gh gpg-key _(stub)_
 
-## gh issue create _(stub)_
+## gh issue create
+Open a new GitHub Issue with title, body, labels, assignees, milestone, and project — fully non-interactively from the command line.
 
-## gh issue develop _(stub)_
+## gh issue develop
+Create a branch that is server-side linked to a GitHub Issue — making the branch visible in the issue's "Development" panel — and optionally check it out locally in one step.
 
-## gh issue _(stub)_
+## gh issue
+Create, browse, and manage GitHub Issues from the terminal — the entry point to every issue workflow.
 
 ## gh label
 Create, list, edit, delete, and clone labels across GitHub repositories.

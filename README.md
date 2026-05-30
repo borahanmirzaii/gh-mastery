@@ -34,7 +34,7 @@ subcommands. The progress list and `cheatsheet.md` are generated — see
 - [ ] extension
 - [ ] gist
 - [ ] gpg-key
-- [ ] issue
+- [x] issue
 - [x] label
 - [ ] licenses
 - [ ] org
@@ -53,7 +53,7 @@ subcommands. The progress list and `cheatsheet.md` are generated — see
 - [ ] variable
 - [ ] workflow
 
-_Progress: 3 / 32 groups._
+_Progress: 4 / 32 groups._
 <!-- END PROGRESS -->
 
 ## Environment
