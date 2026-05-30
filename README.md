@@ -24,7 +24,7 @@ subcommands. The progress list and `cheatsheet.md` are generated — see
 - [ ] alias
 - [ ] api
 - [ ] attestation
-- [ ] auth
+- [x] auth
 - [ ] browse
 - [ ] cache
 - [ ] codespace
@@ -53,7 +53,7 @@ subcommands. The progress list and `cheatsheet.md` are generated — see
 - [ ] variable
 - [ ] workflow
 
-_Progress: 4 / 32 groups._
+_Progress: 5 / 32 groups._
 <!-- END PROGRESS -->
 
 ## Environment

@@ -9,11 +9,14 @@
 
 ## gh attestation _(stub)_
 
-## gh auth login _(stub)_
+## gh auth login
+Authenticate `gh` with a GitHub account — browser flow, device code, or PAT — and store the credential securely in the system keyring.
 
-## gh auth _(stub)_
+## gh auth
+Manage GitHub CLI authentication — log in, log out, inspect token scopes, and switch active accounts across multiple GitHub hosts and identities.
 
-## gh auth refresh _(stub)_
+## gh auth refresh
+Expand, shrink, or reset the OAuth scopes on the active account's stored token — opens a browser re-auth flow to apply the change.
 
 ## gh browse _(stub)_
 
