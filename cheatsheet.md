@@ -66,11 +66,14 @@ Create, list, edit, delete, and clone labels across GitHub repositories.
 
 ## gh release _(stub)_
 
-## gh repo create _(stub)_
+## gh repo create
+Create a new GitHub repository — interactively, from an existing local directory, or fully non-interactively from flags.
 
-## gh repo edit _(stub)_
+## gh repo edit
+Edit repository settings — features, merge strategies, topics, visibility, and more — without opening the GitHub web UI.
 
-## gh repo _(stub)_
+## gh repo
+Create, clone, fork, view, and manage GitHub repositories from the command line.
 
 ## gh ruleset _(stub)_
 
