@@ -46,13 +46,17 @@ Create, list, edit, delete, and clone labels across GitHub repositories.
 
 ## gh org _(stub)_
 
-## gh pr create _(stub)_
+## gh pr create
+Open a new pull request on GitHub from the current (or a specified) branch.
 
-## gh pr merge _(stub)_
+## gh pr merge
+Merge (or squash-merge, or rebase-merge) a pull request and optionally delete its branch.
 
-## gh pr _(stub)_
+## gh pr
+Create, review, and manage GitHub pull requests from the command line.
 
-## gh pr review _(stub)_
+## gh pr review
+Submit an approval, a "request changes" review, or a plain comment review on a pull request — without opening a browser.
 
 ## gh preview _(stub)_
 
