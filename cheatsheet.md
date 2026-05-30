@@ -39,7 +39,8 @@
 
 ## gh issue _(stub)_
 
-## gh label _(stub)_
+## gh label
+Create, list, edit, delete, and clone labels across GitHub repositories.
 
 ## gh licenses _(stub)_
 
