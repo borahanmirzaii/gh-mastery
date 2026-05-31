@@ -51,9 +51,9 @@ subcommands. The progress list and `cheatsheet.md` are generated — see
 - [ ] ssh-key
 - [ ] status
 - [ ] variable
-- [ ] workflow
+- [x] workflow
 
-_Progress: 9 / 32 groups._
+_Progress: 10 / 32 groups._
 <!-- END PROGRESS -->
 
 ## Environment

@@ -116,7 +116,9 @@ Search across all of GitHub — code, commits, issues, pull requests, and reposi
 
 ## gh variable _(stub)_
 
-## gh workflow _(stub)_
+## gh workflow
+List, view, enable, disable, and manually trigger GitHub Actions workflows from the command line.
 
-## gh workflow run _(stub)_
+## gh workflow run
+Dispatch a `workflow_dispatch` event to manually trigger a GitHub Actions workflow, optionally passing typed inputs and targeting a specific branch or SHA.
 
