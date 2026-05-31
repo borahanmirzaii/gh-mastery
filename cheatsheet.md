@@ -72,9 +72,11 @@ Submit an approval, a "request changes" review, or a plain comment review on a p
 
 ## gh project _(stub)_
 
-## gh release create _(stub)_
+## gh release create
+Create a new GitHub Release for a tag — auto-generating notes, setting draft/prerelease state, and uploading assets in one command.
 
-## gh release _(stub)_
+## gh release
+Create, inspect, edit, and delete GitHub Releases — including tag management, release-note generation, and asset uploads.
 
 ## gh repo create
 Create a new GitHub repository — interactively, from an existing local directory, or fully non-interactively from flags.

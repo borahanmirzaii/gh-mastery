@@ -41,7 +41,7 @@ subcommands. The progress list and `cheatsheet.md` are generated — see
 - [x] pr
 - [ ] preview
 - [ ] project
-- [ ] release
+- [x] release
 - [x] repo
 - [ ] ruleset
 - [ ] run
@@ -53,7 +53,7 @@ subcommands. The progress list and `cheatsheet.md` are generated — see
 - [ ] variable
 - [ ] workflow
 
-_Progress: 6 / 32 groups._
+_Progress: 7 / 32 groups._
 <!-- END PROGRESS -->
 
 ## Environment
