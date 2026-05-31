@@ -92,9 +92,11 @@ Create, clone, fork, view, and manage GitHub repositories from the command line.
 
 ## gh ruleset _(stub)_
 
-## gh run _(stub)_
+## gh run
+Inspect, watch, and manage GitHub Actions workflow runs from the terminal.
 
-## gh run watch _(stub)_
+## gh run watch
+Stream live step-by-step progress of a workflow run until it completes.
 
 ## gh search code
 Search within file contents across all of GitHub (or a specific repo/owner) and return matching code snippets with their file paths and URLs.
