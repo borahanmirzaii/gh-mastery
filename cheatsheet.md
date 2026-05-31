@@ -66,11 +66,14 @@ Submit an approval, a "request changes" review, or a plain comment review on a p
 
 ## gh preview _(stub)_
 
-## gh project field-list _(stub)_
+## gh project field-list
+List all fields defined on a GitHub Projects v2 board, including their types, IDs, and — for single-select fields — the option IDs needed for `item-edit` and GraphQL mutations.
 
-## gh project item-list _(stub)_
+## gh project item-list
+List (and optionally filter) the items on a GitHub Projects v2 board, with support for the native Projects filter syntax and JSON output for scripting.
 
-## gh project _(stub)_
+## gh project
+Manage GitHub Projects v2 — create, list, view, edit, and drive items and fields from the command line.
 
 ## gh release create
 Create a new GitHub Release for a tag — auto-generating notes, setting draft/prerelease state, and uploading assets in one command.
