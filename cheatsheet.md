@@ -5,7 +5,8 @@
 
 ## gh alias _(stub)_
 
-## gh api _(stub)_
+## gh api
+Make an authenticated HTTP request to the GitHub REST or GraphQL API and print the response.
 
 ## gh attestation _(stub)_
 
