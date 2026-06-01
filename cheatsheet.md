@@ -114,7 +114,8 @@ Search across all of GitHub — code, commits, issues, pull requests, and reposi
 
 ## gh status _(stub)_
 
-## gh variable _(stub)_
+## gh variable
+Manage GitHub Actions and Dependabot variables — non-encrypted key/value pairs — at the repository, environment, or organization level.
 
 ## gh workflow
 List, view, enable, disable, and manually trigger GitHub Actions workflows from the command line.
