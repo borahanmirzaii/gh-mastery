@@ -105,9 +105,11 @@ Search within file contents across all of GitHub (or a specific repo/owner) and 
 ## gh search
 Search across all of GitHub — code, commits, issues, pull requests, and repositories — from the terminal.
 
-## gh secret _(stub)_
+## gh secret
+Create, list, and delete encrypted secrets for GitHub Actions, Agents, Codespaces, and Dependabot — scoped to a repo, deployment environment, organization, or your user account.
 
-## gh secret set _(stub)_
+## gh secret set
+Create or update an encrypted secret for GitHub Actions, Agents, Codespaces, or Dependabot — at repo, environment, org, or user scope — from a prompt, flag, or dotenv file.
 
 ## gh skill _(stub)_
 

@@ -46,14 +46,14 @@ subcommands. The progress list and `cheatsheet.md` are generated — see
 - [ ] ruleset
 - [x] run
 - [x] search
-- [ ] secret
+- [x] secret
 - [ ] skill
 - [ ] ssh-key
 - [ ] status
 - [x] variable
 - [x] workflow
 
-_Progress: 12 / 32 groups._
+_Progress: 13 / 32 groups._
 <!-- END PROGRESS -->
 
 ## Environment
